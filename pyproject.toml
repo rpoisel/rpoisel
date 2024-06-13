@@ -1,0 +1,89 @@
+[project]
+name = "rpoisel"
+description = "Control system scripts"
+maintainers = [
+  { name = "Rainer Poisel", email = "rainer@honeytreelabs.com" },
+]
+readme = "README.md"
+license = { text = "MIT License" }
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Communications",
+    "Topic :: System :: Networking",
+]
+requires-python = ">= 3.12"
+dependencies = [
+    "click",
+    "httpx",
+    "rapidfuzz",
+]
+dynamic = ["version"] # via setuptools_scm
+
+[project.optional-dependencies]
+test = [
+    "pytest >= 8.0",
+    "pytest-mock",
+]
+
+[tool.setuptools]
+packages = [
+    "rpoisel",
+]
+
+[tool.setuptools_scm]
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
+write_to = "rpoisel/_version.py"
+
+[project.urls]
+Homepage = "https://github.com/rpoisel/rpoisel.git"
+
+[project.scripts]
+rpoisel = "rpoisel:cli"
+
+[build-system]
+requires = [
+    "setuptools>=70.0",
+    "wheel",
+    "setuptools_scm[toml]>=4",
+]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+lint.select = [
+  "E", # pycodestyle
+  "W", # pycodestyle
+  "D", # pydocstyle
+  "F", # pyflakes
+  # "I", # isort
+  # "UP", # pyupgrade
+]
+lint.ignore = [
+  "D100", # Missing docstring in public module
+  "D101", # Missing docstring in public class
+  "D102", # Missing docstring in public method
+  "D103", # Missing docstring in public function
+  "D104", # Missing docstring in public package
+  "D107", # Missing docstring in `__init__`
+  "D205", # 1 blank line required between summary line and description
+  "E501", # Line too long
+]
+
+src = ["rpoisel", "tests"]
+
+line-length = 88 # Match black
+
+# Minimum Python 3.12.
+target-version = "py312"
+
+[tool.ruff.lint.isort]
+known-first-party = ["rpoisel", "tests"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
