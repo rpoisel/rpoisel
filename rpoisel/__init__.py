@@ -42,8 +42,8 @@ def screen(variant: str) -> None:
         )
     run_shell_check(
         "awesome-client '(require(\"rc_util\")).arrange_clients_from_layout_config()'"
+        '  && setxkbmap -layout "us,de" -option "grp:caps_toggle"'
     )
-    run_shell_check('setxkbmap -layout "us,de" -option "grp:caps_toggle"')
 
 
 @cli.command
@@ -76,12 +76,8 @@ KNOWN_BROWSERS: dict[str, BrowserNames] = {
 def set_default_browser(browser_names: BrowserNames) -> None:
     run_shell_check(
         f"xdg-settings set default-web-browser {browser_names.name}.desktop"
-    )
-    run_shell_check(
-        f"sudo update-alternatives --set x-www-browser /usr/bin/{browser_names.alt_name}"
-    )
-    run_shell_check(
-        f"sudo update-alternatives --set gnome-www-browser /usr/bin/{browser_names.alt_name}"
+        f"  && sudo update-alternatives --set x-www-browser /usr/bin/{browser_names.alt_name}"
+        f"  && sudo update-alternatives --set gnome-www-browser /usr/bin/{browser_names.alt_name}"
     )
 
 
