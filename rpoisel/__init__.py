@@ -87,7 +87,7 @@ def browser_command(browser: str) -> None:
     match, score, _ = rapidfuzz.process.extractOne(browser, KNOWN_BROWSERS.keys())
     if score < 80:
         raise click.BadParameter(
-            f"Invalid value for 'browser. Choose from {KNOWN_BROWSERS.keys()}"
+            f"Invalid value for browser. Choose from {KNOWN_BROWSERS.keys()}"
         )
     click.echo(f"Setting default browser: {match}")
     set_default_browser(KNOWN_BROWSERS[match])
