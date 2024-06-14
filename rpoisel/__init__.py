@@ -40,6 +40,10 @@ def screen(variant: str) -> None:
                 " --output HDMI-1 --mode 1920x1080 --pos 0x0 --rate 29.99"
             ),
         )
+    run_shell_check(
+        "awesome-client '(require(\"rc_util\")).arrange_clients_from_layout_config()'"
+    )
+    run_shell_check('setxkbmap -layout "us,de" -option "grp:caps_toggle"')
 
 
 @cli.command
