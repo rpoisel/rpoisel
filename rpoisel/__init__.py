@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 import click
+import httpx
 import rapidfuzz
 
 from .util import AliasedGroup
@@ -39,6 +40,14 @@ def screen(variant: str) -> None:
                 " --output HDMI-1 --mode 1920x1080 --pos 0x0 --rate 29.99"
             ),
         )
+
+
+@cli.command
+@click.argument("endpoint", type=click.Choice(["mic"], case_sensitive=False))
+@click.argument("state", type=click.Choice(["on", "off"], case_sensitive=False))
+def power(endpoint: str, state: str) -> None:
+    if endpoint == "mic":
+        httpx.post("http://192.168.87.67/relay/0", data={"turn": state})
 
 
 @cli.command
