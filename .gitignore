@@ -163,3 +163,4 @@ cython_debug/
 
 .python-version
 rpoisel/_version.py
+.dir-locals.el

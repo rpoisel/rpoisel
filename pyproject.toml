@@ -87,3 +87,13 @@ known-first-party = ["rpoisel", "tests"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "."
+]
+testpaths = [
+    "tests",
+]
+log_cli = true
+log_cli_level = "INFO"
