@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from ipaddress import IPv4Address
 
 import click
 import httpx
@@ -48,11 +49,15 @@ def screen(variant: str) -> None:
 
 
 @cli.command
-@click.argument("endpoint", type=click.Choice(["mic"], case_sensitive=False))
+@click.argument("endpoint", type=click.Choice(["mic", "other"], case_sensitive=False))
 @click.argument("state", type=click.Choice(["on", "off"], case_sensitive=False))
 def power(endpoint: str, state: str) -> None:
-    if endpoint == "mic":
-        httpx.post("http://192.168.87.67/relay/0", data={"turn": state})
+    IP_MAPPING: dict[str, IPv4Address] = {
+        "mic": IPv4Address("192.168.87.67"),
+        "other": IPv4Address("192.168.87.18"),
+    }
+    ip = IP_MAPPING[endpoint]
+    httpx.get(f"http://{ip}/relay/0?turn={state}")
 
 
 @cli.command
