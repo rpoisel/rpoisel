@@ -5,9 +5,9 @@ import click
 import httpx
 import rapidfuzz
 
-from .util import AliasedGroup
-from .process import run_shell_check
 from .generator import ElispVisitor, visit_click_app
+from .process import run_shell_check
+from .util import AliasedGroup
 
 
 @click.group(cls=AliasedGroup)
