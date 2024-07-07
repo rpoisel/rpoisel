@@ -99,6 +99,31 @@ def browser_command(browser: str) -> None:
     set_default_browser(KNOWN_BROWSERS[match])
 
 
+@cli.command(name="vm")
+@click.argument("command", type=click.Choice(["start", "state"], case_sensitive=False))
+@click.argument("name", type=click.STRING)
+def vm_command(name: str, command: str) -> None:
+    def vm_get_info(name: str) -> str:
+        return run_shell_check(f"VBoxManage showvminfo {name} --machinereadable")
+
+    def vm_get_state(name: str) -> str:
+        vm_info = vm_get_info(name)
+        for line in vm_info.splitlines():
+            if line.startswith("VMState="):
+                return line.split("=")[1].strip('"')
+        raise RuntimeError("could not determine vm state")
+
+    vm_state = vm_get_state(name)
+
+    if command == "state":
+        click.echo(vm_state)
+    elif command == "start":
+        if vm_state == "running":
+            click.echo(f"VM {name} is already running.")
+            return
+        run_shell_check(f"VBoxManage startvm {name} --type headless")
+
+
 @cli.command
 def elisp() -> None:
     visitor = ElispVisitor()
