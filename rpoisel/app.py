@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from ipaddress import IPv4Address
+from pathlib import Path
 
 import click
 import httpx
@@ -99,29 +100,41 @@ def browser_command(browser: str) -> None:
     set_default_browser(KNOWN_BROWSERS[match])
 
 
+QEMU_PID_FILES_BASE = Path("/") / "var" / "run"
+QEMU_IMAGES_FILES_BASE = Path.home() / "images" / "hdimages"
+
+
 @cli.command(name="vm")
 @click.argument("command", type=click.Choice(["start", "state"], case_sensitive=False))
 @click.argument("name", type=click.STRING)
 def vm_command(name: str, command: str) -> None:
-    def vm_get_info(name: str) -> str:
-        return run_shell_check(f"VBoxManage showvminfo {name} --machinereadable")
+    pid_file = QEMU_PID_FILES_BASE / f"qemu-{name}.pid"
 
-    def vm_get_state(name: str) -> str:
-        vm_info = vm_get_info(name)
-        for line in vm_info.splitlines():
-            if line.startswith("VMState="):
-                return line.split("=")[1].strip('"')
-        raise RuntimeError("could not determine vm state")
-
-    vm_state = vm_get_state(name)
+    def vm_is_running() -> bool:
+        return pid_file.exists()
 
     if command == "state":
-        click.echo(vm_state)
+        click.echo("running" if vm_is_running() else "stopped")
     elif command == "start":
-        if vm_state == "running":
+        if vm_is_running():
             click.echo(f"VM {name} is already running.")
             return
-        run_shell_check(f"VBoxManage startvm {name} --type headless")
+        run_shell_check(f"""sudo qemu-system-x86_64 \
+  -accel kvm \
+  -m 4G \
+  -netdev bridge,id=net0,br=bridge0 \
+  -device e1000,netdev=net0 \
+  -netdev user,id=net1 \
+  -device e1000,netdev=net1 \
+  -drive file={QEMU_IMAGES_FILES_BASE}/{name}.vmdk,format=vmdk,if=virtio \
+  -device usb-ehci,id=ehci \
+  -device usb-host,vendorid=0x04e8,productid=0x3321 \
+  -name qemu-vm-{name},process=vm-{name} \
+  -daemonize \
+  -serial none \
+  -display none \
+  -pidfile {pid_file}
+""")
 
 
 @cli.command
