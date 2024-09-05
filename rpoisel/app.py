@@ -64,7 +64,7 @@ def power(endpoint: str, state: str) -> None:
 @cli.command
 def sleep() -> None:
     run_shell_check("sync")
-    run_shell_check("sudo systemctl suspend")
+    run_shell_check("sudo systemctl suspend --force")
 
 
 @dataclass
