@@ -8,6 +8,7 @@ import rapidfuzz
 
 from .generator import ElispVisitor, visit_click_app
 from .process import run_shell_check
+from .qmp import QMPClient
 from .util import AliasedGroup
 
 
@@ -105,22 +106,31 @@ QEMU_IMAGES_FILES_BASE = Path.home() / "images" / "hdimages"
 
 
 @cli.command(name="vm")
-@click.argument("command", type=click.Choice(["start", "state"], case_sensitive=False))
+@click.argument(
+    "command",
+    type=click.Choice(
+        ["start", "state", "stop", "cont", "powerdown"], case_sensitive=False
+    ),
+)
 @click.argument("name", type=click.STRING)
 def vm_command(name: str, command: str) -> None:
     pid_file = QEMU_PID_FILES_BASE / f"qemu-{name}.pid"
-
-    def vm_is_running() -> bool:
-        return pid_file.exists()
+    qmp_socket = Path("/") / "tmp" / f"qmp-sock-{name}"
+    qmp_client = QMPClient(qmp_socket) if qmp_socket.exists() else None
 
     if command == "state":
-        click.echo("running" if vm_is_running() else "stopped")
+        if not qmp_client:
+            click.echo("QMP client not created. VM does not seem to run.")
+            return
+        result = qmp_client.send_monitor_cmd("query-status")
+        click.echo(result["status"])
     elif command == "start":
-        if vm_is_running():
+        if qmp_client:
             click.echo(f"VM {name} is already running.")
             return
         run_shell_check(f"""sudo qemu-system-x86_64 \
   -accel kvm \
+  -cpu host \
   -m 4G \
   -netdev bridge,id=net0,br=bridge0 \
   -device e1000,netdev=net0 \
@@ -133,8 +143,20 @@ def vm_command(name: str, command: str) -> None:
   -daemonize \
   -serial none \
   -display none \
+  -qmp unix:{qmp_socket},server=on,wait=off \
   -pidfile {pid_file}
 """)
+        run_shell_check(f"""sudo chown $(id -u):$(id -g) {qmp_socket}""")
+    elif command == "stop" or command == "cont":
+        if not qmp_client:
+            click.echo("QMP client not created. VM does not seem to run.")
+            return
+        qmp_client.send_monitor_cmd(command)
+    elif command == "powerdown":
+        if not qmp_client:
+            click.echo("QMP client not created. VM does not seem to run.")
+            return
+        qmp_client.send_monitor_cmd("system_powerdown")
 
 
 @cli.command
