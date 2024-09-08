@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from ipaddress import IPv4Address
-from pathlib import Path
+from typing import Optional
 
 import click
 import httpx
@@ -8,6 +8,12 @@ import rapidfuzz
 
 from .generator import ElispVisitor, visit_click_app
 from .process import run_shell_check
+from .qemu import (
+    QEMU_IMAGES_FILES_BASE,
+    get_pid_file_path,
+    get_socket_path,
+    list_vms,
+)
 from .qmp import QMPClient
 from .util import AliasedGroup
 
@@ -64,6 +70,15 @@ def power(endpoint: str, state: str) -> None:
 
 @cli.command
 def sleep() -> None:
+    vms = list_vms()
+    if vms:
+        vms_str = ",".join([str(vm) for vm in vms])
+        click.secho(
+            f"There are VMs running: [{vms_str}]. Not going to sleep.",
+            fg="red",
+            err=True,
+        )
+        click.get_current_context().exit(1)
     run_shell_check("sync")
     run_shell_check("sudo systemctl suspend --force")
 
@@ -101,22 +116,27 @@ def browser_command(browser: str) -> None:
     set_default_browser(KNOWN_BROWSERS[match])
 
 
-QEMU_PID_FILES_BASE = Path("/") / "var" / "run"
-QEMU_IMAGES_FILES_BASE = Path.home() / "images" / "hdimages"
-
-
 @cli.command(name="vm")
 @click.argument(
     "command",
     type=click.Choice(
-        ["start", "state", "stop", "cont", "powerdown"], case_sensitive=False
+        ["list", "start", "state", "stop", "cont", "powerdown"], case_sensitive=False
     ),
 )
-@click.argument("name", type=click.STRING)
-def vm_command(name: str, command: str) -> None:
-    pid_file = QEMU_PID_FILES_BASE / f"qemu-{name}.pid"
-    qmp_socket = Path("/") / "tmp" / f"qmp-sock-{name}"
-    qmp_client = QMPClient(qmp_socket) if qmp_socket.exists() else None
+@click.argument("name", type=click.STRING, required=False)
+def vm_command(name: Optional[str], command: str) -> None:
+    if command == "list":
+        for vm in list_vms():
+            click.echo(str(vm))
+        return
+
+    if not name:
+        click.secho("Error: missing argument 'name'.", fg="red", err=True)
+        click.get_current_context().exit(1)
+
+    qmp_socket_path = get_socket_path(name)
+    pid_file_path = get_pid_file_path(name)
+    qmp_client = QMPClient(qmp_socket_path) if qmp_socket_path.exists() else None
 
     if command == "state":
         if not qmp_client:
@@ -143,10 +163,11 @@ def vm_command(name: str, command: str) -> None:
   -daemonize \
   -serial none \
   -display none \
-  -qmp unix:{qmp_socket},server=on,wait=off \
-  -pidfile {pid_file}
+  -qmp unix:{qmp_socket_path},server=on,wait=off \
+  -pidfile {pid_file_path}
 """)
-        run_shell_check(f"""sudo chown $(id -u):$(id -g) {qmp_socket}""")
+        run_shell_check(f"""sudo chown $(id -u):$(id -g) {qmp_socket_path}""")
+        run_shell_check(f"""sudo chown $(id -u):$(id -g) {pid_file_path}""")
     elif command == "stop" or command == "cont":
         if not qmp_client:
             click.echo("QMP client not created. VM does not seem to run.")
