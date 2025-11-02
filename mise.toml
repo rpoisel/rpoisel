@@ -1,0 +1,20 @@
+[settings]
+python.uv_venv_auto = true
+
+[tools]
+uv = 'latest'
+
+[tasks.update_peps]
+run = """uv lock -U
+uv sync
+"""
+
+[tasks.build]
+run = """docker compose build
+"""
+
+[env]
+_.file = ".env"
+
+[hooks]
+enter = "uv sync"
