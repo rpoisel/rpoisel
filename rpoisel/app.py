@@ -78,7 +78,6 @@ def sleep() -> None:
             fg="red",
             err=True,
         )
-        click.get_current_context().exit(1)
     run_shell_check("sync")
     run_shell_check("sudo systemctl suspend --force")
 
