@@ -24,32 +24,16 @@ def cli() -> None:
 
 
 @cli.command
-@click.argument("variant", type=click.Choice(["1", "2", "2a"], case_sensitive=False))
+@click.argument("variant", type=click.Choice(["1", "2", "3", "4"], case_sensitive=False))
 def screen(variant: str) -> None:
     if variant == "1":
-        run_shell_check(
-            (
-                "xrandr"
-                " --output eDP-1 --primary --mode 1920x1080 --pos 0x0 --rate 60.02"
-                " --output DP-1 --off"
-            ),
-        )
+        run_shell_check("autorandr --load one")
     elif variant == "2":
-        run_shell_check(
-            (
-                "xrandr"
-                " --output eDP-1 --mode 1920x1080 --pos 3440x0 --rate 60.02"
-                " --output DP-1 --primary --mode 3440x1440 --pos 0x0 --rate 29.99"
-            ),
-        )
-    elif variant == "2a":
-        run_shell_check(
-            (
-                "xrandr"
-                " --output eDP-1 --primary --mode 1920x1080 --pos 1920x0 --rate 60.02"
-                " --output HDMI-1 --mode 1920x1080 --pos 0x0 --rate 29.99"
-            ),
-        )
+        run_shell_check("autorandr --load two")
+    elif variant == "3":
+        run_shell_check("autorandr --load three")
+    elif variant == "4":
+        run_shell_check("autorandr --load four")
     run_shell_check(
         "awesome-client '(require(\"rc_util\")).arrange_clients_from_layout_config()'"
         '  && setxkbmap -layout "us,de" -option "grp:caps_toggle"'
