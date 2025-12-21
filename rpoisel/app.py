@@ -24,7 +24,9 @@ def cli() -> None:
 
 
 @cli.command
-@click.argument("variant", type=click.Choice(["1", "2", "3", "4"], case_sensitive=False))
+@click.argument(
+    "variant", type=click.Choice(["1", "2", "3", "4"], case_sensitive=False)
+)
 def screen(variant: str) -> None:
     if variant == "1":
         run_shell_check("autorandr --load one")
@@ -54,14 +56,6 @@ def power(endpoint: str, state: str) -> None:
 
 @cli.command
 def sleep() -> None:
-    vms = list_vms()
-    if vms:
-        vms_str = ",".join([str(vm) for vm in vms])
-        click.secho(
-            f"There are VMs running: [{vms_str}]. Not going to sleep.",
-            fg="red",
-            err=True,
-        )
     run_shell_check("sync")
     run_shell_check("sudo systemctl suspend --force")
 
