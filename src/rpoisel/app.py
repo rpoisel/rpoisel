@@ -46,7 +46,12 @@ class VMCommand(str, Enum):
     powerdown = "powerdown"
 
 
-app = typer.Typer(cls=AliasedGroup)
+app = typer.Typer(
+    cls=AliasedGroup,
+    name="rpoisel",
+    help="Rainer Poisel personal CLI",
+    no_args_is_help=True,
+)
 
 
 @app.command()
