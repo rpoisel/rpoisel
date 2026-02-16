@@ -35,6 +35,9 @@ dev = [
 [project.scripts]
 rpoisel = "rpoisel:app"
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/rpoisel"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
