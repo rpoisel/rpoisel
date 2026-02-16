@@ -20,7 +20,7 @@ class QEMUVM:
         self.qmp_socket = get_socket_path(name)
         try:
             self.pid = int(get_pid_file_path(name).read_text().strip())
-        except FileNotFoundError as exc:
+        except (FileNotFoundError, PermissionError) as exc:
             raise QEMUError(f"Could not instantiate QEMU VM {name}") from exc
 
     def __str__(self) -> str:
@@ -33,6 +33,12 @@ def get_pid_file_path(name: str) -> Path:
 
 def get_socket_path(name: str) -> Path:
     return QEMU_QMP_SOCKETS_BASE / f"qmp-{name}"
+
+
+def create_image(name: str, size: str) -> Path:
+    image_path = QEMU_IMAGES_FILES_BASE / f"{name}.vmdk"
+    run_shell_check(f"qemu-img create -f vmdk {image_path} {size}")
+    return image_path
 
 
 def list_vms() -> list[QEMUVM]:

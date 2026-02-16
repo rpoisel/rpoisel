@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from ipaddress import IPv4Address
+from pathlib import Path
 from typing import Optional
 
 import httpx
@@ -12,6 +13,7 @@ from .generator import ElispVisitor, visit_app
 from .process import run_shell_check
 from .qemu import (
     QEMU_IMAGES_FILES_BASE,
+    create_image,
     get_pid_file_path,
     get_socket_path,
     list_vms,
@@ -39,6 +41,7 @@ class PowerState(str, Enum):
 
 class VMCommand(str, Enum):
     list = "list"
+    create = "create"
     start = "start"
     state = "state"
     stop = "stop"
@@ -127,6 +130,11 @@ def browser_command(browser: str) -> None:
 def vm_command(
     command: VMCommand,
     name: Optional[str] = typer.Argument(default=None),
+    iso: Optional[Path] = typer.Option(None, help="Path to installation ISO"),
+    size: str = typer.Option("20G", help="Disk image size"),
+    vnc_display: int = typer.Option(0, help="VNC display number (port = 5900 + N)"),
+    bridge: str = typer.Option("bridge0", help="Network bridge to attach the VM to"),
+    force: bool = typer.Option(False, help="Overwrite existing disk image"),
 ) -> None:
     if command == VMCommand.list:
         for vm in list_vms():
@@ -136,6 +144,51 @@ def vm_command(
     if not name:
         typer.secho("Error: missing argument 'name'.", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1)
+
+    if command == VMCommand.create:
+        if not iso:
+            typer.secho(
+                "Error: --iso is required for 'create'.", fg=typer.colors.RED, err=True
+            )
+            raise typer.Exit(code=1)
+        if not iso.exists():
+            typer.secho(
+                f"Error: ISO file not found: {iso}", fg=typer.colors.RED, err=True
+            )
+            raise typer.Exit(code=1)
+        image_path = QEMU_IMAGES_FILES_BASE / f"{name}.vmdk"
+        if image_path.exists() and not force:
+            typer.secho(
+                f"Error: image already exists: {image_path}. Use --force to overwrite.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
+        create_image(name, size)
+        qmp_socket_path = get_socket_path(name)
+        pid_file_path = get_pid_file_path(name)
+        vnc_port = 5900 + vnc_display
+        print(f"Creating VM '{name}' with {size} disk from {iso}")
+        print(f"Connect via VNC to :{vnc_display} (port {vnc_port})")
+        run_shell_check(f"""sudo qemu-system-x86_64 \
+  -accel kvm \
+  -cpu host \
+  -m 4G \
+  -netdev bridge,id=net0,br={bridge} \
+  -device e1000,netdev=net0 \
+  -netdev user,id=net1 \
+  -device e1000,netdev=net1 \
+  -drive file={image_path},format=vmdk,if=virtio \
+  -cdrom {iso} \
+  -boot d \
+  -device usb-ehci,id=ehci \
+  -device usb-host,vendorid=0x04e8,productid=0x3321 \
+  -name qemu-vm-{name},process=vm-{name} \
+  -display vnc=:{vnc_display} \
+  -qmp unix:{qmp_socket_path},server=on,wait=off \
+  -pidfile {pid_file_path}
+""")
+        return
 
     qmp_socket_path = get_socket_path(name)
     pid_file_path = get_pid_file_path(name)
@@ -155,7 +208,7 @@ def vm_command(
   -accel kvm \
   -cpu host \
   -m 4G \
-  -netdev bridge,id=net0,br=bridge0 \
+  -netdev bridge,id=net0,br={bridge} \
   -device e1000,netdev=net0 \
   -netdev user,id=net1 \
   -device e1000,netdev=net1 \
