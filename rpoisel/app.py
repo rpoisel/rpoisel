@@ -84,7 +84,12 @@ def set_default_browser(browser_names: BrowserNames) -> None:
 @cli.command(name="browser")
 @click.argument("browser", type=click.STRING)
 def browser_command(browser: str) -> None:
-    match, score, _ = rapidfuzz.process.extractOne(browser, KNOWN_BROWSERS.keys())
+    result = rapidfuzz.process.extractOne(browser, KNOWN_BROWSERS.keys())
+    if result is None:
+        raise click.BadParameter(
+            f"Invalid value for browser. Choose from {KNOWN_BROWSERS.keys()}"
+        )
+    match, score, _ = result
     if score < 80:
         raise click.BadParameter(
             f"Invalid value for browser. Choose from {KNOWN_BROWSERS.keys()}"
