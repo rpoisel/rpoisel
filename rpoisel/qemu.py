@@ -1,7 +1,6 @@
 import re
+import sys
 from pathlib import Path
-
-import click
 
 from .process import run_shell_check
 
@@ -48,7 +47,7 @@ def list_vms() -> list[QEMUVM]:
         try:
             result.append(QEMUVM(vm_name))
         except QEMUError as exc:
-            click.echo(f"Error interacting with VM: {exc}")
+            print(f"Error interacting with VM: {exc}", file=sys.stderr)
             run_shell_check(f"sudo rm {get_socket_path(vm_name)}")
             continue
     return result

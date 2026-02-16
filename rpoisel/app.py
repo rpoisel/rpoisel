@@ -1,12 +1,14 @@
 from dataclasses import dataclass
+from enum import Enum
 from ipaddress import IPv4Address
 from typing import Optional
 
-import click
 import httpx
 import rapidfuzz
+import typer
+import typer.main
 
-from .generator import ElispVisitor, visit_click_app
+from .generator import ElispVisitor, visit_app
 from .process import run_shell_check
 from .qemu import (
     QEMU_IMAGES_FILES_BASE,
@@ -18,23 +20,44 @@ from .qmp import QMPClient
 from .util import AliasedGroup
 
 
-@click.group(cls=AliasedGroup)
-def cli() -> None:
-    pass
+class ScreenVariant(str, Enum):
+    one = "1"
+    two = "2"
+    three = "3"
+    four = "4"
 
 
-@cli.command
-@click.argument(
-    "variant", type=click.Choice(["1", "2", "3", "4"], case_sensitive=False)
-)
-def screen(variant: str) -> None:
-    if variant == "1":
+class PowerEndpoint(str, Enum):
+    mic = "mic"
+    other = "other"
+
+
+class PowerState(str, Enum):
+    on = "on"
+    off = "off"
+
+
+class VMCommand(str, Enum):
+    list = "list"
+    start = "start"
+    state = "state"
+    stop = "stop"
+    cont = "cont"
+    powerdown = "powerdown"
+
+
+app = typer.Typer(cls=AliasedGroup)
+
+
+@app.command()
+def screen(variant: ScreenVariant) -> None:
+    if variant == ScreenVariant.one:
         run_shell_check("autorandr --load one")
-    elif variant == "2":
+    elif variant == ScreenVariant.two:
         run_shell_check("autorandr --load two")
-    elif variant == "3":
+    elif variant == ScreenVariant.three:
         run_shell_check("autorandr --load three")
-    elif variant == "4":
+    elif variant == ScreenVariant.four:
         run_shell_check("autorandr --load four")
     run_shell_check(
         "awesome-client '(require(\"rc_util\")).arrange_clients_from_layout_config()'"
@@ -42,19 +65,17 @@ def screen(variant: str) -> None:
     )
 
 
-@cli.command
-@click.argument("endpoint", type=click.Choice(["mic", "other"], case_sensitive=False))
-@click.argument("state", type=click.Choice(["on", "off"], case_sensitive=False))
-def power(endpoint: str, state: str) -> None:
-    IP_MAPPING: dict[str, IPv4Address] = {
-        "mic": IPv4Address("192.168.87.67"),
-        "other": IPv4Address("192.168.87.18"),
+@app.command()
+def power(endpoint: PowerEndpoint, state: PowerState) -> None:
+    IP_MAPPING: dict[PowerEndpoint, IPv4Address] = {
+        PowerEndpoint.mic: IPv4Address("192.168.87.67"),
+        PowerEndpoint.other: IPv4Address("192.168.87.18"),
     }
     ip = IP_MAPPING[endpoint]
-    httpx.get(f"http://{ip}/relay/0?turn={state}")
+    httpx.get(f"http://{ip}/relay/0?turn={state.value}")
 
 
-@cli.command
+@app.command()
 def sleep() -> None:
     run_shell_check("sync")
     run_shell_check("sudo systemctl suspend --force")
@@ -81,54 +102,49 @@ def set_default_browser(browser_names: BrowserNames) -> None:
     )
 
 
-@cli.command(name="browser")
-@click.argument("browser", type=click.STRING)
+@app.command(name="browser")
 def browser_command(browser: str) -> None:
     result = rapidfuzz.process.extractOne(browser, KNOWN_BROWSERS.keys())
     if result is None:
-        raise click.BadParameter(
+        raise typer.BadParameter(
             f"Invalid value for browser. Choose from {KNOWN_BROWSERS.keys()}"
         )
     match, score, _ = result
     if score < 80:
-        raise click.BadParameter(
+        raise typer.BadParameter(
             f"Invalid value for browser. Choose from {KNOWN_BROWSERS.keys()}"
         )
-    click.echo(f"Setting default browser: {match}")
+    print(f"Setting default browser: {match}")
     set_default_browser(KNOWN_BROWSERS[match])
 
 
-@cli.command(name="vm")
-@click.argument(
-    "command",
-    type=click.Choice(
-        ["list", "start", "state", "stop", "cont", "powerdown"], case_sensitive=False
-    ),
-)
-@click.argument("name", type=click.STRING, required=False)
-def vm_command(name: Optional[str], command: str) -> None:
-    if command == "list":
+@app.command(name="vm")
+def vm_command(
+    command: VMCommand,
+    name: Optional[str] = typer.Argument(default=None),
+) -> None:
+    if command == VMCommand.list:
         for vm in list_vms():
-            click.echo(str(vm))
+            print(str(vm))
         return
 
     if not name:
-        click.secho("Error: missing argument 'name'.", fg="red", err=True)
-        click.get_current_context().exit(1)
+        typer.secho("Error: missing argument 'name'.", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1)
 
     qmp_socket_path = get_socket_path(name)
     pid_file_path = get_pid_file_path(name)
     qmp_client = QMPClient(qmp_socket_path) if qmp_socket_path.exists() else None
 
-    if command == "state":
+    if command == VMCommand.state:
         if not qmp_client:
-            click.echo("QMP client not created. VM does not seem to run.")
+            print("QMP client not created. VM does not seem to run.")
             return
         result = qmp_client.send_monitor_cmd("query-status")
-        click.echo(result["status"])
-    elif command == "start":
+        print(result["status"])
+    elif command == VMCommand.start:
         if qmp_client:
-            click.echo(f"VM {name} is already running.")
+            print(f"VM {name} is already running.")
             return
         run_shell_check(f"""sudo qemu-system-x86_64 \
   -accel kvm \
@@ -150,20 +166,21 @@ def vm_command(name: Optional[str], command: str) -> None:
 """)
         run_shell_check(f"""sudo chown $(id -u):$(id -g) {qmp_socket_path}""")
         run_shell_check(f"""sudo chown $(id -u):$(id -g) {pid_file_path}""")
-    elif command == "stop" or command == "cont":
+    elif command == VMCommand.stop or command == VMCommand.cont:
         if not qmp_client:
-            click.echo("QMP client not created. VM does not seem to run.")
+            print("QMP client not created. VM does not seem to run.")
             return
-        qmp_client.send_monitor_cmd(command)
-    elif command == "powerdown":
+        qmp_client.send_monitor_cmd(command.value)
+    elif command == VMCommand.powerdown:
         if not qmp_client:
-            click.echo("QMP client not created. VM does not seem to run.")
+            print("QMP client not created. VM does not seem to run.")
             return
         qmp_client.send_monitor_cmd("system_powerdown")
 
 
-@cli.command
+@app.command()
 def elisp() -> None:
     visitor = ElispVisitor()
-    visit_click_app(cli, visitor)
-    click.echo(visitor.spit())
+    cli = typer.main.get_command(app)
+    visit_app(cli, visitor)
+    print(visitor.spit())

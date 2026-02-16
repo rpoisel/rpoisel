@@ -9,23 +9,19 @@ class Visitor(ABC):
     def command(self, command: click.Command) -> None: ...
 
 
-def visit_click_group(
-    group: click.Group, visitor: Visitor, parent_name: str = ""
-) -> None:
+def visit_group(group: click.Group, visitor: Visitor, parent_name: str = "") -> None:
     for name, command in group.commands.items():
         if isinstance(command, click.Group):
-            visit_click_group(command, visitor, parent_name + name + "-")
+            visit_group(command, visitor, parent_name + name + "-")
         else:
             visitor.command(command)
 
 
-def visit_click_app(
-    click_app: Union[click.Group, click.Command], visitor: Visitor
-) -> None:
-    if isinstance(click_app, click.Group):
-        visit_click_group(click_app, visitor)
+def visit_app(app: Union[click.Group, click.Command], visitor: Visitor) -> None:
+    if isinstance(app, click.Group):
+        visit_group(app, visitor)
     else:
-        visitor.command(click_app)
+        visitor.command(app)
 
 
 class ElispVisitor(Visitor):

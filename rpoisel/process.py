@@ -1,6 +1,5 @@
 import subprocess
-
-import click
+import sys
 
 
 def run_shell_check(args: str | list[str]) -> str:
@@ -15,5 +14,8 @@ def run_shell_check(args: str | list[str]) -> str:
         )
         return completed_process.stdout
     except subprocess.CalledProcessError as exc:
-        click.echo(f"Problem (returncode={exc.returncode}): {exc.stdout} {exc.stderr}")
+        print(
+            f"Problem (returncode={exc.returncode}): {exc.stdout} {exc.stderr}",
+            file=sys.stderr,
+        )
         raise
