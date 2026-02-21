@@ -218,7 +218,7 @@ def vm_command(
   -name qemu-vm-{name},process=vm-{name} \
   -daemonize \
   -serial none \
-  -display none \
+  -display vnc=:{vnc_display} \
   -qmp unix:{qmp_socket_path},server=on,wait=off \
   -pidfile {pid_file_path}
 """)
