@@ -1,5 +1,5 @@
 from .app import app
-from .generator import ElispVisitor, visit_app
+from .commands.elisp import ElispVisitor, visit_app
 
 __all__ = [
     "ElispVisitor",

@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from typing import Union, override
 
 import click
+import typer
+import typer.main
 
 
 class Visitor(ABC):
@@ -49,3 +51,12 @@ Parameters:
 
     def spit(self) -> str:
         return "\n".join(self._code).strip()
+
+
+def register(app: typer.Typer) -> None:
+    @app.command()
+    def elisp() -> None:
+        visitor = ElispVisitor()
+        cli = typer.main.get_command(app)
+        visit_app(cli, visitor)
+        print(visitor.spit())
