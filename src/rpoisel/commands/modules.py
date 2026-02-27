@@ -61,7 +61,7 @@ def register(app: typer.Typer) -> None:
     def modules_command(
         command: ModulesCommand,
         pattern: str = typer.Argument(
-            default="*.ko.xz",
+            default="v4l2loopback*.ko.xz",
             help="Glob pattern to match module files (e.g. 'v4l2loopback*.ko.xz')",
         ),
     ) -> None:
