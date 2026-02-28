@@ -1,6 +1,7 @@
 import typer
 
 from .commands import browser, elisp, modules, power, screen, sleep, vm
+from .commands import print as print_cmd
 from .util.cli import AliasedGroup
 
 app = typer.Typer(
@@ -15,5 +16,6 @@ power.register(app)
 sleep.register(app)
 browser.register(app)
 vm.register(app)
+print_cmd.register(app)
 modules.register(app)
 elisp.register(app)
