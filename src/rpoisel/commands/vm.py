@@ -122,7 +122,17 @@ def register(app: typer.Typer) -> None:
             "bridge0", help="Network bridge to attach the VM to"
         ),
         force: bool = typer.Option(False, help="Overwrite existing disk image"),
+        printer: bool = typer.Option(
+            False, help="Pass through USB printer (04e8:3321)"
+        ),
     ) -> None:
+        usb_args = (
+            """\
+  -device usb-ehci,id=ehci \\
+  -device usb-host,vendorid=0x04e8,productid=0x3321 \\"""
+            if printer
+            else ""
+        )
         if command == VMCommand.list:
             for vm in _list_vms():
                 print(str(vm))
@@ -176,9 +186,7 @@ def register(app: typer.Typer) -> None:
   -drive file={image_path},format=vmdk,if=virtio \
   -cdrom {iso} \
   -boot d \
-  -device usb-ehci,id=ehci \
-  -device usb-host,vendorid=0x04e8,productid=0x3321 \
-  -name qemu-vm-{name},process=vm-{name} \
+  {usb_args}  -name qemu-vm-{name},process=vm-{name} \
   -display vnc=:{vnc_display} \
   -qmp unix:{qmp_socket_path},server=on,wait=off \
   -pidfile {pid_file_path}
@@ -208,9 +216,7 @@ def register(app: typer.Typer) -> None:
   -netdev user,id=net1 \
   -device e1000,netdev=net1 \
   -drive file={QEMU_IMAGES_FILES_BASE}/{name}.vmdk,format=vmdk,if=virtio \
-  -device usb-ehci,id=ehci \
-  -device usb-host,vendorid=0x04e8,productid=0x3321 \
-  -name qemu-vm-{name},process=vm-{name} \
+  {usb_args}  -name qemu-vm-{name},process=vm-{name} \
   -daemonize \
   -serial none \
   -display vnc=:{vnc_display} \
